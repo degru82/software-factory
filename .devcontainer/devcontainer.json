@@ -1,0 +1,21 @@
+{
+  "name": "software-factory",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "runServices": ["app", "neo4j"],
+  "workspaceFolder": "/workspaces/software-factory",
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [8501, 7474, 7687],
+  "portsAttributes": {
+    "8501": { "label": "Streamlit" },
+    "7474": { "label": "Neo4j Browser" },
+    "7687": { "label": "Neo4j Bolt" }
+  },
+  "postCreateCommand": "uv sync",
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"]
+    }
+  }
+}
