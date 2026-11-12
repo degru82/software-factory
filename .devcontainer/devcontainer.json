@@ -12,7 +12,6 @@
     "7687": { "label": "Neo4j Bolt" }
   },
   "postCreateCommand": "uv sync",
-  "postStartCommand": "cypher-shell 'RETURN 1'",
   "remoteUser": "vscode",
   "customizations": {
     "vscode": {
