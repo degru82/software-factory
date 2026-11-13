@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "NHTSA 파워트레인 결함 그래프 검색 + 장애보고서·조치계획 초안 에이전트"
 readme = "README.md"
 requires-python = "==3.12.*"
-dependencies = []
+dependencies = [
+    "streamlit>=1.40.0",
+]
 
 [dependency-groups]
 dev = [
