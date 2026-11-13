@@ -10,7 +10,6 @@ from typing import Any
 
 import pytest
 
-
 # Expected skills from Phase 2.1 installation
 MATT_POCOCK_SKILLS = [
     "ask-matt",
@@ -131,7 +130,7 @@ def test_skill_md_frontmatter_matches_directory_name(skills_dir: Path) -> None:
             pytest.fail(f"{skill_md} missing frontmatter")
 
         frontmatter_lines = []
-        for i, line in enumerate(lines[1:], start=1):
+        for line in lines[1:]:
             if line.strip() == "---":
                 break
             frontmatter_lines.append(line)
@@ -143,9 +142,10 @@ def test_skill_md_frontmatter_matches_directory_name(skills_dir: Path) -> None:
         for line in frontmatter_lines:
             if line.strip().startswith("name:"):
                 frontmatter_name = line.split(":", 1)[1].strip().strip('"').strip("'")
-                assert (
-                    frontmatter_name == skill_name
-                ), f"{skill_md} frontmatter name '{frontmatter_name}' != directory name '{skill_name}'"
+                assert frontmatter_name == skill_name, (
+                    f"{skill_md} frontmatter name '{frontmatter_name}' "
+                    f"!= directory name '{skill_name}'"
+                )
                 name_found = True
                 break
 
@@ -181,6 +181,15 @@ def test_no_broken_or_circular_symlinks(skills_dir: Path) -> None:
                 pytest.fail(f"Broken or circular symlink: {item} ({e})")
 
 
+def _skill_names(skills_path: Path) -> set[str]:
+    """Return skill directory names under a skills root (skip non-dirs)."""
+    return {
+        item.name
+        for item in skills_path.iterdir()
+        if item.name != ".gitkeep" and (item.is_dir() or item.is_symlink())
+    }
+
+
 def test_claude_and_cursor_symlinks(repo_root: Path) -> None:
     """.claude/skills and .cursor/skills must symlink to ../.agents/skills."""
     claude_skills = repo_root / ".claude" / "skills"
@@ -196,10 +205,38 @@ def test_claude_and_cursor_symlinks(repo_root: Path) -> None:
         cursor_skills.readlink() == Path("../.agents/skills")
     ), f".cursor/skills points to {cursor_skills.readlink()}, expected ../.agents/skills"
 
+    # Symlinks must resolve (not broken).
+    assert claude_skills.resolve(strict=True).is_dir()
+    assert cursor_skills.resolve(strict=True).is_dir()
+
+
+def test_symlink_skill_name_set_parity(repo_root: Path, skills_dir: Path) -> None:
+    """Resolved Claude/Cursor skill paths must match .agents/skills name set."""
+    expected = _skill_names(skills_dir)
+    assert expected, ".agents/skills has no skill directories"
+
+    claude_skills = (repo_root / ".claude" / "skills").resolve(strict=True)
+    cursor_skills = (repo_root / ".cursor" / "skills").resolve(strict=True)
+
+    assert _skill_names(claude_skills) == expected
+    assert _skill_names(cursor_skills) == expected
+
+    # Spot-check V3 required names are present on all three roots.
+    for name in ("tdd", "ecosystem-primer", "setup-matt-pocock-skills"):
+        assert name in expected, f"missing expected skill {name}"
+        assert (skills_dir / name / "SKILL.md").is_file()
+        assert (claude_skills / name / "SKILL.md").is_file()
+        assert (cursor_skills / name / "SKILL.md").is_file()
+
 
 def test_skills_lock_has_required_sources(skills_lock: dict[str, Any]) -> None:
     """skills-lock.json must contain mattpocock/skills and langchain-ai/langchain-skills."""
-    sources = {entry.get("source") for entry in skills_lock.values() if isinstance(entry, dict)}
+    skills = skills_lock.get("skills")
+    assert isinstance(skills, dict), "skills-lock.json missing top-level 'skills' object"
+
+    sources = {
+        entry.get("source") for entry in skills.values() if isinstance(entry, dict)
+    }
 
     assert (
         "mattpocock/skills" in sources
@@ -209,17 +246,20 @@ def test_skills_lock_has_required_sources(skills_lock: dict[str, Any]) -> None:
     ), "skills-lock.json missing source 'langchain-ai/langchain-skills'"
 
 
-def test_skills_lock_has_commit_info(skills_lock: dict[str, Any]) -> None:
-    """Each skill entry in skills-lock.json must have 'commit' and 'computedHash'."""
-    for skill_name, entry in skills_lock.items():
-        if not isinstance(entry, dict):
-            continue
-        assert "commit" in entry, f"{skill_name} missing 'commit' in skills-lock.json"
+def test_skills_lock_has_computed_hash(skills_lock: dict[str, Any]) -> None:
+    """Each skill entry must have non-empty computedHash (commit is optional).
+
+    Current skills-lock.json schema (v2) stores computedHash only; no commit field.
+    """
+    skills = skills_lock.get("skills")
+    assert isinstance(skills, dict), "skills-lock.json missing top-level 'skills' object"
+
+    for skill_name, entry in skills.items():
+        assert isinstance(entry, dict), f"{skill_name} entry is not an object"
         assert (
             "computedHash" in entry
         ), f"{skill_name} missing 'computedHash' in skills-lock.json"
-        assert entry["commit"], f"{skill_name} has empty 'commit' in skills-lock.json"
-        assert entry["computedHash"], f"{skill_name} has empty 'computedHash' in skills-lock.json"
+        assert entry["computedHash"], f"{skill_name} has empty 'computedHash'"
 
 
 def test_excluded_skills_not_installed(skills_dir: Path) -> None:

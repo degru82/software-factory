@@ -27,6 +27,8 @@ packages = ["src/factory_app"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
+# Vendor skills from #12; do not lint upstream copies under .agents/
+extend-exclude = [".agents"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
