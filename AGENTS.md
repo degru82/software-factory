@@ -31,3 +31,5 @@ uv run streamlit run src/factory_app/ui/app.py
 
 ## 설계 원칙
 선언형 적재(ontology.yaml 주도), 임베딩 해시 캐시, seed.py 한 번으로 재현.
+
+MCP 원본은 `.agents/mcp.json`만 수정하고 `scripts/sync-agent-config.sh`로 생성한다(`.mcp.json` / `.cursor/mcp.json` 손편집 금지).
