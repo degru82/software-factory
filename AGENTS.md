@@ -13,8 +13,9 @@
    다른 agent:* 라벨이 있으면 코멘트만 남기고 중단한다.
 5. 자율성 라벨을 넘지 않는다. L2·L3에서는 스스로 머지하지 않는다.
 6. Epic을 만들지 않는다. 하위 Issue는 반드시 'Parent: #N'을 단다. Epic에 멘션되면 열린 하위 Issue를 의존 순서대로 Issue당 PR 하나씩 처리하고, 빠진 하위 Issue는 Epic 범위 안에서만 만든다. approved:gate 라벨은 붙이지 않는다.
-7. 이해를 높이기 위해 이 리포에 기록하는 것은 모두 한국어로 쓴다: 문서(docs/, ADR, CONTEXT.md, 스킬), 코드 주석·docstring, 커밋 메시지, Issue·PR 제목과 본문, 코멘트.
+7. 이해를 높이기 위해 이 리포에 기록하는 것은 모두 한국어로 쓴다: 문서(docs/, ADR, CONTEXT.md, 직접 만든 스킬), 코드 주석·docstring, 커밋 메시지, Issue·PR 제목과 본문, 코멘트.
    식별자(변수·함수·파일명), 명령어, 라벨 문자열, 인용한 오류 메시지는 원문 그대로 둔다. 영어 원어가 필요한 용어는 `한국어 (English)`로 병기한다.
+   예외: 외부에서 받아 온 스킬(`skills-lock.json`에 등록된 것)은 원문 그대로 두고 번역하지 않는다. 고치면 `computedHash`가 어긋나고 업스트림 갱신이 덮어쓴다.
 
 ## 작업 방식
 - LangChain/LangGraph/DeepAgents 코드는 먼저 ecosystem-primer 스킬과
