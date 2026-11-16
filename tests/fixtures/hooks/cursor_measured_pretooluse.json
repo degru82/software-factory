@@ -1,0 +1,1 @@
+{"conversation_id":"00000000-0000-0000-0000-000000000000","cursor_version":"2026.11.13","generation_id":"00000000-0000-0000-0000-000000000000","hook_event_name":"preToolUse","model":"default","session_id":"00000000-0000-0000-0000-000000000000","tool_input":{"file_path":"","content":"x\n"},"tool_name":"Write","tool_use_id":"call-0","transcript_path":"","workspace_roots":[""]}

@@ -387,3 +387,16 @@ def test_cursor_delete_path_is_protected(repo: Path) -> None:
     p = edit_payload("cursor", repo, "ontology/ontology.yaml")
     p["tool_name"] = "Delete"
     assert run("protect_paths", p).returncode == 2
+
+
+@pytest.mark.parametrize("tool", ["Write", "Delete"])
+def test_cursor_measured_payload_is_protected(repo: Path, tool: str) -> None:
+    """#19 실측 형태(cursor-agent 2026.11.13): `cwd` 없이 `workspace_roots`와 절대 경로만 온다."""
+    p = load("cursor_measured_pretooluse.json")
+    p["tool_name"] = tool
+    p["workspace_roots"] = [str(repo)]
+    p["tool_input"]["file_path"] = str(repo / "ontology" / "ontology.yaml")
+    assert "cwd" not in p
+    r = run("protect_paths", p)
+    assert r.returncode == 2
+    assert json.loads(r.stdout)["permission"] == "deny"
