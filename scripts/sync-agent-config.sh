@@ -67,7 +67,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -121,7 +120,7 @@ def to_cursor(source: dict[str, Any]) -> dict[str, Any]:
         return converted
     for _name, entry in servers.items():
         if isinstance(entry, dict) and is_stdio_server(entry):
-            entry["type"] = "stdio"
+            entry.setdefault("type", "stdio")
     return converted
 
 
@@ -145,11 +144,18 @@ def load_source() -> dict[str, Any]:
     return data
 
 
+def atomic_write(path: Path, text: str) -> None:
+    """Write via a sibling temp file + os.replace so a failure never leaves a partial file."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def write_outputs(claude_text: str, cursor_text: str) -> None:
     """Write generated Claude and Cursor MCP JSON files."""
     CURSOR_OUT.parent.mkdir(parents=True, exist_ok=True)
-    CLAUDE_OUT.write_text(claude_text, encoding="utf-8")
-    CURSOR_OUT.write_text(cursor_text, encoding="utf-8")
+    atomic_write(CLAUDE_OUT, claude_text)
+    atomic_write(CURSOR_OUT, cursor_text)
 
 
 def check_outputs(claude_text: str, cursor_text: str) -> None:
@@ -179,12 +185,6 @@ def main() -> None:
     cursor_text = dump_json(to_cursor(source))
 
     if MODE == "check":
-        # Regen in a temp dir only to keep the comparison path explicit/auditable.
-        with tempfile.TemporaryDirectory(prefix="mcp-sync-check-") as tmp:
-            tmp_path = Path(tmp)
-            (tmp_path / "claude.json").write_text(claude_text, encoding="utf-8")
-            (tmp_path / "cursor.json").write_text(cursor_text, encoding="utf-8")
-            _ = tmp_path  # generated; comparison uses in-memory expected text
         check_outputs(claude_text, cursor_text)
         return
 

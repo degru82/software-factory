@@ -25,5 +25,13 @@ config files use different interpolation and stdio typing conventions.
 ## Consequences
 
 - CI (#21) can call `--check` without regenerating or calling the network.
-- Clone alone gives both hosts a working project MCP file.
+- Clone gives both hosts the same project MCP file, but servers using
+  `${VAR}` need those variables set locally: `CONTEXT7_API_KEY` and
+  `NEO4J_MCP_URI`, `NEO4J_MCP_USERNAME`, `NEO4J_MCP_PASSWORD`,
+  `NEO4J_MCP_DATABASE`. Claude Code may fail to parse a config with unset
+  variables that have no default, so set them (or accept a warning) first.
+- Output keys are sorted alphabetically (`sort_keys`); keep the source sorted
+  so source and artifacts read in the same order.
+- The `neo4j` package/variable names (`uvx neo4j-mcp-server`, `NEO4J_MCP_*`)
+  are not verified by tests; confirm via `/mcp` in the manual checklist.
 - Schema drift is a failed check, not silent divergence.
