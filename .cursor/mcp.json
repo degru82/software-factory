@@ -1,1 +1,36 @@
-{ "mcpServers": {} }
+{
+  "mcpServers": {
+    "context7": {
+      "headers": {
+        "Authorization": "Bearer ${env:CONTEXT7_API_KEY}"
+      },
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "docs-langchain": {
+      "type": "http",
+      "url": "https://docs.langchain.com/mcp"
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "neo4j": {
+      "args": [
+        "neo4j-mcp-server"
+      ],
+      "command": "uvx",
+      "env": {
+        "NEO4J_MCP_DATABASE": "${env:NEO4J_MCP_DATABASE}",
+        "NEO4J_MCP_PASSWORD": "${env:NEO4J_MCP_PASSWORD}",
+        "NEO4J_MCP_URI": "${env:NEO4J_MCP_URI}",
+        "NEO4J_MCP_USERNAME": "${env:NEO4J_MCP_USERNAME}"
+      },
+      "type": "stdio"
+    },
+    "reference-langchain": {
+      "type": "http",
+      "url": "https://reference.langchain.com/mcp"
+    }
+  }
+}
