@@ -1,1 +1,15 @@
-{ "version": 1, "hooks": {} }
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      { "command": ".agents/hooks/protect_paths.sh", "matcher": "Write|Delete", "timeout": 30 },
+      { "command": ".agents/hooks/block_secrets.sh", "matcher": "Write|Delete", "timeout": 30 }
+    ],
+    "beforeShellExecution": [
+      { "command": ".agents/hooks/cost_guard.sh", "timeout": 30 }
+    ],
+    "stop": [
+      { "command": ".agents/hooks/fast_checks.sh", "timeout": 600 }
+    ]
+  }
+}

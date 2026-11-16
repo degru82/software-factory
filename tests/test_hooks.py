@@ -38,7 +38,9 @@ def run(
     script: str, payload: str | dict[str, Any], env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
-    full_env = {k: v for k, v in os.environ.items() if k != "FACTORY_ALLOW_PAID"}
+    full_env = {
+        k: v for k, v in os.environ.items() if k not in ("FACTORY_ALLOW_PAID", "CURSOR_VERSION")
+    }
     full_env.update(env or {})
     return subprocess.run(
         [str(HOOKS / f"{script}.sh")],
@@ -317,3 +319,84 @@ def test_cursor_stdout_is_valid_json(repo: Path) -> None:
         ("fast_checks", stop_payload(host, repo)),
     ]:
         assert isinstance(json.loads(run(script, payload).stdout), dict)
+
+
+def test_cursor_env_broken_json_returns_valid_allow() -> None:
+    """F1: Cursor는 권한 Hook의 응답이 유효한 JSON이 아니면 막으므로 허용 JSON을 낸다."""
+    r = run("protect_paths", "not json", env={"CURSOR_VERSION": "1.0"})
+    assert r.returncode == 0
+    assert json.loads(r.stdout) == {"permission": "allow"}
+    r = run("fast_checks", "not json", env={"CURSOR_VERSION": "1.0"})
+    assert r.returncode == 0
+    assert json.loads(r.stdout) == {}
+
+
+def test_claude_input_wins_over_inherited_cursor_env(repo: Path) -> None:
+    """Cursor 터미널에서 띄운 Claude Code가 CURSOR_VERSION을 상속해도 Claude 방식으로 응답한다.
+
+    Claude는 hook_event_name을 PascalCase(`PreToolUse`)로 보낸다. 환경변수보다 입력을 먼저 본다.
+    """
+    env = {"CURSOR_VERSION": "1.0"}
+    r = run("protect_paths", edit_payload("claude", repo, "ontology/ontology.yaml"), env=env)
+    assert r.returncode == 2
+    assert "보호 경로" in r.stderr
+    assert r.stdout == ""
+
+
+def test_cursor_input_without_cursor_version_field_is_cursor(repo: Path) -> None:
+    """camelCase 이벤트 이름(`preToolUse`)이면 cursor_version 필드가 없어도 Cursor로 판정한다."""
+    payload = edit_payload("cursor", repo, "ontology/ontology.yaml")
+    del payload["cursor_version"]
+    r = run("protect_paths", payload)
+    assert r.returncode == 2
+    assert json.loads(r.stdout)["permission"] == "deny"
+
+
+def test_broken_json_without_cursor_env_stays_silent() -> None:
+    r = run("protect_paths", "not json")
+    assert r.returncode == 0
+    assert r.stdout == ""
+
+
+@pytest.mark.parametrize("host", HOSTS)
+def test_fast_checks_without_uv_warns_and_passes(host: str, repo: Path, tmp_path: Path) -> None:
+    """F2: uv가 없으면 경고 후 통과한다 (D4)."""
+    (repo / "src" / "x.py").write_text("import os\n")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for tool in ("python3", "git", "bash", "dirname"):
+        found = subprocess.run(["which", tool], capture_output=True, text=True).stdout.strip()
+        (bin_dir / tool).symlink_to(found)
+    env = {k: v for k, v in os.environ.items() if k not in ("FAST_CHECKS_CMD", "CURSOR_VERSION")}
+    env["PATH"] = str(bin_dir)
+    r = subprocess.run(
+        [str(HOOKS / "fast_checks.sh")],
+        input=json.dumps(stop_payload(host, repo)),
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
+    assert r.returncode == 0
+    assert "uv" in r.stderr
+    if host == "cursor":
+        assert json.loads(r.stdout) == {}
+
+
+def test_cursor_delete_path_is_protected(repo: Path) -> None:
+    p = edit_payload("cursor", repo, "ontology/ontology.yaml")
+    p["tool_name"] = "Delete"
+    assert run("protect_paths", p).returncode == 2
+
+
+@pytest.mark.parametrize("tool", ["Write", "Delete"])
+def test_cursor_measured_payload_is_protected(repo: Path, tool: str) -> None:
+    """#19 실측 형태(cursor-agent 2026.11.13): `cwd` 없이 `workspace_roots`와 절대 경로만 온다."""
+    p = load("cursor_measured_pretooluse.json")
+    p["tool_name"] = tool
+    p["workspace_roots"] = [str(repo)]
+    p["tool_input"]["file_path"] = str(repo / "ontology" / "ontology.yaml")
+    assert "cwd" not in p
+    r = run("protect_paths", p)
+    assert r.returncode == 2
+    assert json.loads(r.stdout)["permission"] == "deny"

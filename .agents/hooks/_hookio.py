@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -82,13 +83,37 @@ def _first_str(d: dict[str, Any], keys: tuple[str, ...]) -> list[str]:
     return [d[k] for k in keys if isinstance(d.get(k), str) and d[k]]
 
 
+def detect_host(data: dict[str, Any]) -> str:
+    """표준 입력으로 먼저 호스트를 판정하고, 단서가 없을 때만 환경변수를 본다.
+
+    Cursor 터미널에서 띄운 Claude Code는 CURSOR_VERSION을 상속할 수 있으므로
+    환경변수를 입력보다 앞세우지 않는다.
+    """
+    if "cursor_version" in data:
+        return "cursor"
+    name = data.get("hook_event_name")
+    if isinstance(name, str) and name:
+        # Claude는 PascalCase(`PreToolUse`), Cursor는 camelCase(`preToolUse`).
+        return "claude" if name[0].isupper() else "cursor"
+    return "cursor" if os.environ.get("CURSOR_VERSION") else "claude"
+
+
 def normalize(data: dict[str, Any]) -> Event:
-    host = "cursor" if "cursor_version" in data else "claude"
+    host = detect_host(data)
     ti = data.get("tool_input")
     ti = ti if isinstance(ti, dict) else {}
 
     # Cursor preToolUse(Write)의 경로 필드는 문서에 명시되지 않아 후보 키를 차례로 찾는다.
-    path_keys = ("file_path", "path", "notebook_path", "target_notebook")
+    # 실측(#19 2.5) 전까지 알려진 변형을 넉넉히 둔다. 못 찾으면 경고만 내고 통과한다.
+    path_keys = (
+        "file_path",
+        "path",
+        "notebook_path",
+        "target_notebook",
+        "filePath",
+        "target_file",
+        "relative_workspace_path",
+    )
     paths = _first_str(ti, path_keys) or _first_str(data, path_keys)
 
     content_keys = ("content", "contents", "new_string", "new_str", "new_source", "text")
@@ -275,7 +300,13 @@ def check_fast_checks(ev: Event) -> int:
     if status.returncode == 0 and not status.stdout.strip():
         return allow(ev, stop=True)  # 변경 없음: 질의응답 세션은 검사하지 않는다.
     root = repo_root(ev.cwd)
-    cmd = os.environ.get("FAST_CHECKS_CMD") or DEFAULT_FAST_CHECKS
+    custom = os.environ.get("FAST_CHECKS_CMD")
+    if not custom and shutil.which("uv") is None:
+        # 실행 환경 미비는 코드 결함이 아니다. 막으면 매 세션 쓸모없는 재시도 루프가 생긴다.
+        # 최종 강제는 CI가 한다 (#19 D4).
+        warn("`uv`가 PATH에 없어 fast_checks를 건너뜁니다. 실행 환경에 uv 설치가 필요합니다.")
+        return allow(ev, stop=True)
+    cmd = custom or DEFAULT_FAST_CHECKS
     try:
         res = subprocess.run(
             ["bash", "-c", cmd],
@@ -317,6 +348,9 @@ def main(argv: list[str]) -> int:
         ev = normalize(data)
     except ValueError as e:  # JSONDecodeError 포함
         warn(f"입력을 해석하지 못해 통과시킵니다 (fail-open): {e}")
+        # Cursor는 권한 Hook 응답이 유효한 JSON이 아니면 동작을 막으므로 허용 응답을 낸다.
+        if os.environ.get("CURSOR_VERSION"):
+            print("{}" if argv[1] == "fast_checks" else json.dumps({"permission": "allow"}))
         return 0
     return CHECKS[argv[1]](ev)
 
