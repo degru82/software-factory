@@ -111,9 +111,7 @@ def _payload(host: str, rel: str) -> dict[str, Any]:
     return p
 
 
-@pytest.mark.parametrize(
-    ("rel", "code"), [("ontology/ontology.yaml", 2), ("src/x.py", 0)]
-)
+@pytest.mark.parametrize(("rel", "code"), [("ontology/ontology.yaml", 2), ("src/x.py", 0)])
 def test_claude_registered_command_runs_from_subdir(rel: str, code: int) -> None:
     env = {k: v for k, v in os.environ.items() if k != "CURSOR_VERSION"}
     env["CLAUDE_PROJECT_DIR"] = str(ROOT)
@@ -130,9 +128,7 @@ def test_claude_registered_command_runs_from_subdir(rel: str, code: int) -> None
     assert r.returncode == code, r.stderr
 
 
-@pytest.mark.parametrize(
-    ("rel", "code"), [("ontology/ontology.yaml", 2), ("src/x.py", 0)]
-)
+@pytest.mark.parametrize(("rel", "code"), [("ontology/ontology.yaml", 2), ("src/x.py", 0)])
 def test_cursor_registered_command_runs_from_root(rel: str, code: int) -> None:
     env = {k: v for k, v in os.environ.items() if k != "CURSOR_VERSION"}
     cmd = cursor_entries()["protect_paths.sh"][3]

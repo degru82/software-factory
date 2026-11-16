@@ -38,7 +38,9 @@ def run(
     script: str, payload: str | dict[str, Any], env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
-    full_env = {k: v for k, v in os.environ.items() if k not in ("FACTORY_ALLOW_PAID", "CURSOR_VERSION")}
+    full_env = {
+        k: v for k, v in os.environ.items() if k not in ("FACTORY_ALLOW_PAID", "CURSOR_VERSION")
+    }
     full_env.update(env or {})
     return subprocess.run(
         [str(HOOKS / f"{script}.sh")],
@@ -327,6 +329,27 @@ def test_cursor_env_broken_json_returns_valid_allow() -> None:
     r = run("fast_checks", "not json", env={"CURSOR_VERSION": "1.0"})
     assert r.returncode == 0
     assert json.loads(r.stdout) == {}
+
+
+def test_claude_input_wins_over_inherited_cursor_env(repo: Path) -> None:
+    """Cursor 터미널에서 띄운 Claude Code가 CURSOR_VERSION을 상속해도 Claude 방식으로 응답한다.
+
+    Claude는 hook_event_name을 PascalCase(`PreToolUse`)로 보낸다. 환경변수보다 입력을 먼저 본다.
+    """
+    env = {"CURSOR_VERSION": "1.0"}
+    r = run("protect_paths", edit_payload("claude", repo, "ontology/ontology.yaml"), env=env)
+    assert r.returncode == 2
+    assert "보호 경로" in r.stderr
+    assert r.stdout == ""
+
+
+def test_cursor_input_without_cursor_version_field_is_cursor(repo: Path) -> None:
+    """camelCase 이벤트 이름(`preToolUse`)이면 cursor_version 필드가 없어도 Cursor로 판정한다."""
+    payload = edit_payload("cursor", repo, "ontology/ontology.yaml")
+    del payload["cursor_version"]
+    r = run("protect_paths", payload)
+    assert r.returncode == 2
+    assert json.loads(r.stdout)["permission"] == "deny"
 
 
 def test_broken_json_without_cursor_env_stays_silent() -> None:

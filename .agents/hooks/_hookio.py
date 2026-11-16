@@ -83,10 +83,23 @@ def _first_str(d: dict[str, Any], keys: tuple[str, ...]) -> list[str]:
     return [d[k] for k in keys if isinstance(d.get(k), str) and d[k]]
 
 
+def detect_host(data: dict[str, Any]) -> str:
+    """표준 입력으로 먼저 호스트를 판정하고, 단서가 없을 때만 환경변수를 본다.
+
+    Cursor 터미널에서 띄운 Claude Code는 CURSOR_VERSION을 상속할 수 있으므로
+    환경변수를 입력보다 앞세우지 않는다.
+    """
+    if "cursor_version" in data:
+        return "cursor"
+    name = data.get("hook_event_name")
+    if isinstance(name, str) and name:
+        # Claude는 PascalCase(`PreToolUse`), Cursor는 camelCase(`preToolUse`).
+        return "claude" if name[0].isupper() else "cursor"
+    return "cursor" if os.environ.get("CURSOR_VERSION") else "claude"
+
+
 def normalize(data: dict[str, Any]) -> Event:
-    # 표준 입력의 cursor_version을 먼저 보고, 없으면 Cursor가 항상 설정하는 환경변수를 본다.
-    is_cursor = "cursor_version" in data or bool(os.environ.get("CURSOR_VERSION"))
-    host = "cursor" if is_cursor else "claude"
+    host = detect_host(data)
     ti = data.get("tool_input")
     ti = ti if isinstance(ti, dict) else {}
 
