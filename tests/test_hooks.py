@@ -38,7 +38,7 @@ def run(
     script: str, payload: str | dict[str, Any], env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
-    full_env = {k: v for k, v in os.environ.items() if k != "FACTORY_ALLOW_PAID"}
+    full_env = {k: v for k, v in os.environ.items() if k not in ("FACTORY_ALLOW_PAID", "CURSOR_VERSION")}
     full_env.update(env or {})
     return subprocess.run(
         [str(HOOKS / f"{script}.sh")],
@@ -317,3 +317,50 @@ def test_cursor_stdout_is_valid_json(repo: Path) -> None:
         ("fast_checks", stop_payload(host, repo)),
     ]:
         assert isinstance(json.loads(run(script, payload).stdout), dict)
+
+
+def test_cursor_env_broken_json_returns_valid_allow() -> None:
+    """F1: Cursor는 권한 Hook의 응답이 유효한 JSON이 아니면 막으므로 허용 JSON을 낸다."""
+    r = run("protect_paths", "not json", env={"CURSOR_VERSION": "1.0"})
+    assert r.returncode == 0
+    assert json.loads(r.stdout) == {"permission": "allow"}
+    r = run("fast_checks", "not json", env={"CURSOR_VERSION": "1.0"})
+    assert r.returncode == 0
+    assert json.loads(r.stdout) == {}
+
+
+def test_broken_json_without_cursor_env_stays_silent() -> None:
+    r = run("protect_paths", "not json")
+    assert r.returncode == 0
+    assert r.stdout == ""
+
+
+@pytest.mark.parametrize("host", HOSTS)
+def test_fast_checks_without_uv_warns_and_passes(host: str, repo: Path, tmp_path: Path) -> None:
+    """F2: uv가 없으면 경고 후 통과한다 (D4)."""
+    (repo / "src" / "x.py").write_text("import os\n")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for tool in ("python3", "git", "bash", "dirname"):
+        found = subprocess.run(["which", tool], capture_output=True, text=True).stdout.strip()
+        (bin_dir / tool).symlink_to(found)
+    env = {k: v for k, v in os.environ.items() if k not in ("FAST_CHECKS_CMD", "CURSOR_VERSION")}
+    env["PATH"] = str(bin_dir)
+    r = subprocess.run(
+        [str(HOOKS / "fast_checks.sh")],
+        input=json.dumps(stop_payload(host, repo)),
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
+    assert r.returncode == 0
+    assert "uv" in r.stderr
+    if host == "cursor":
+        assert json.loads(r.stdout) == {}
+
+
+def test_cursor_delete_path_is_protected(repo: Path) -> None:
+    p = edit_payload("cursor", repo, "ontology/ontology.yaml")
+    p["tool_name"] = "Delete"
+    assert run("protect_paths", p).returncode == 2
