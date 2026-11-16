@@ -5,6 +5,7 @@ Phase 2.5 (#16): 외부 lock 스킬과 분리된 리포 전용 스킬 4개를 �
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -66,8 +67,6 @@ def skills_lock(repo_root: Path) -> dict[str, Any]:
     """skills-lock.json 내용."""
     lock_path = repo_root / "skills-lock.json"
     with lock_path.open(encoding="utf-8") as f:
-        import json
-
         return json.load(f)
 
 
