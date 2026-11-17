@@ -1,0 +1,38 @@
+# gitleaks 설정 원본. pre-commit(#20)과 CI gitleaks.yml(#21)이 같이 읽는다.
+# 이 파일 이름은 gitleaks 기본 전역 allowlist(`gitleaks\.toml`)에 걸려 스캔 대상에서 빠진다.
+#
+# 원칙 (#20 2.3)
+# - 업스트림 기본 규칙을 확장만 한다(useDefault). 복사하면 갱신을 못 받는다.
+# - 이 리포의 핵심 키(Action Plan 부록 A) 중 기본 규칙에 없는 것만 보강한다.
+# - allowlist는 디렉터리 단위로 넓게 잡지 않는다. 오탐은 줄 단위 `gitleaks:allow` 주석이나
+#   좁은 경로에 이유를 함께 적어 처리한다.
+title = "software-factory gitleaks"
+
+[extend]
+useDefault = true
+
+# OPENROUTER_API_KEY, OPENROUTER_EVAL_KEY (부록 A). v8.30.1 기본 규칙에 없다.
+# 형식이 고정(sk-or-v1- + 16진수 64자)이라 엔트로피 조건 없이도 오탐이 거의 없다.
+[[rules]]
+id = "openrouter-api-key"
+description = "OpenRouter API key"
+regex = '''\b(sk-or-v1-[0-9a-f]{64})\b'''
+keywords = ["sk-or-v1-"]
+
+# CLAUDE_CODE_OAUTH_TOKEN (부록 A, `claude setup-token`). 기본 규칙은 API 키(sk-ant-api03-)와
+# admin 키만 다룬다. OAuth 접근·갱신 토큰(sk-ant-oat01-, sk-ant-ort01-)을 보강한다.
+[[rules]]
+id = "anthropic-oauth-token"
+description = "Anthropic (Claude) OAuth token"
+regex = '''\b(sk-ant-o[ar]t\d{2}-[A-Za-z0-9_\-]{40,})'''
+entropy = 3
+keywords = ["sk-ant-oat", "sk-ant-ort"]
+
+# 오탐 (도입 전 이력 스캔에서 발견): 외부 스킬 ecosystem-primer/SKILL.md의 환경변수 예시 블록.
+# `LANGSMITH_API_KEY=<your-key>` 다음 줄 `LANGSMITH_TRACING=true`까지 generic 규칙이 하나로 묶어 잡는다.
+# 외부 스킬(skills-lock.json 등록)은 해시가 깨지므로 `gitleaks:allow` 주석을 달 수 없다(AGENTS.md 규칙 7).
+# 이 파일 하나, generic-api-key 규칙 하나만 제외한다. 다른 규칙(OpenRouter·GitHub 등)은 그대로 잡는다.
+[[allowlists]]
+description = "외부 스킬 ecosystem-primer의 환경변수 예시 (generic-api-key 오탐)"
+targetRules = ["generic-api-key"]
+paths = ['''^\.agents/skills/ecosystem-primer/SKILL\.md$''']

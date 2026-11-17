@@ -6,7 +6,7 @@
 
 ## 반드시 지킬 것
 1. 보호 경로(ontology/, interfaces/, eval/gold/, eval/baseline.json, .github/workflows/)는 수정하지 않는다.
-   바꿔야 하면 PR 설명에 '제안'으로 쓰고 멈춘다. 의존성·배포 설정(pyproject.toml, uv.lock, render.yaml, .devcontainer/)은 고칠 수 있지만 사람 승인이 필요하고 L4 자동 머지 대상이 아니다.
+   바꿔야 하면 PR 설명에 '제안'으로 쓰고 멈춘다. 의존성·배포 설정(pyproject.toml, uv.lock, render.yaml, .devcontainer/)과 시크릿 게이트 설정(.gitleaks.toml, .pre-commit-config.yaml)은 고칠 수 있지만 사람 승인이 필요하고 L4 자동 머지 대상이 아니다.
 2. 키·모델 ID는 코드에 쓰지 않는다. config.py를 통해 환경변수로만 읽는다.
 3. 유료 LLM 호출은 반드시 budget.py를 거친다. 테스트에서는 mock.
 4. 작업을 잡으면 Issue에 agent:<이름> 라벨을 붙인다.

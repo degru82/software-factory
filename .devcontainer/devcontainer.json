@@ -14,7 +14,7 @@
     "7474": { "label": "Neo4j Browser" },
     "7687": { "label": "Neo4j Bolt" }
   },
-  "postCreateCommand": "uv sync",
+  "postCreateCommand": "uv sync && uv run pre-commit install",
   "remoteUser": "vscode",
   "customizations": {
     "vscode": {
