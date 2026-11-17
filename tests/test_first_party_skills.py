@@ -71,9 +71,7 @@ def skills_lock(repo_root: Path) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize("skill_name", FIRST_PARTY_SKILLS)
-def test_first_party_skill_md_exists_and_is_real_file(
-    skills_dir: Path, skill_name: str
-) -> None:
+def test_first_party_skill_md_exists_and_is_real_file(skills_dir: Path, skill_name: str) -> None:
     """각 자체 스킬 디렉터리에 실파일 SKILL.md가 있다 (symlink 아님)."""
     skill_dir = skills_dir / skill_name
     skill_md = skill_dir / "SKILL.md"
@@ -84,9 +82,7 @@ def test_first_party_skill_md_exists_and_is_real_file(
 
 
 @pytest.mark.parametrize("skill_name", FIRST_PARTY_SKILLS)
-def test_first_party_frontmatter_name_and_description(
-    skills_dir: Path, skill_name: str
-) -> None:
+def test_first_party_frontmatter_name_and_description(skills_dir: Path, skill_name: str) -> None:
     """frontmatter name == 디렉터리명, description 비어 있지 않음."""
     skill_md = skills_dir / skill_name / "SKILL.md"
     content = skill_md.read_text(encoding="utf-8")
@@ -100,9 +96,7 @@ def test_first_party_frontmatter_name_and_description(
 
 
 @pytest.mark.parametrize("skill_name", FIRST_PARTY_SKILLS)
-def test_first_party_body_has_procedure_and_success(
-    skills_dir: Path, skill_name: str
-) -> None:
+def test_first_party_body_has_procedure_and_success(skills_dir: Path, skill_name: str) -> None:
     """본문에 절차·성공 조건에 해당하는 문구가 있다."""
     skill_md = skills_dir / skill_name / "SKILL.md"
     body = _body_after_frontmatter(skill_md.read_text(encoding="utf-8"))
@@ -111,9 +105,7 @@ def test_first_party_body_has_procedure_and_success(
 
 
 @pytest.mark.parametrize("skill_name", FIRST_PARTY_SKILLS)
-def test_first_party_not_in_skills_lock(
-    skills_lock: dict[str, Any], skill_name: str
-) -> None:
+def test_first_party_not_in_skills_lock(skills_lock: dict[str, Any], skill_name: str) -> None:
     """자체 스킬은 skills-lock.json의 skills 키에 없어야 한다."""
     locked = skills_lock.get("skills")
     assert isinstance(locked, dict)
@@ -128,12 +120,8 @@ def test_first_party_visible_via_claude_and_cursor_symlinks(
 ) -> None:
     """symlink 트리를 통해 Claude·Cursor가 동일 SKILL.md를 가리킨다."""
     origin = (skills_dir / skill_name / "SKILL.md").resolve(strict=True)
-    claude = (
-        repo_root / ".claude" / "skills" / skill_name / "SKILL.md"
-    ).resolve(strict=True)
-    cursor = (
-        repo_root / ".cursor" / "skills" / skill_name / "SKILL.md"
-    ).resolve(strict=True)
+    claude = (repo_root / ".claude" / "skills" / skill_name / "SKILL.md").resolve(strict=True)
+    cursor = (repo_root / ".cursor" / "skills" / skill_name / "SKILL.md").resolve(strict=True)
     assert claude == origin
     assert cursor == origin
 
@@ -151,9 +139,7 @@ def test_skill_dirs_partition_lock_xor_first_party(
     assert not overlap, f"skills in both lock and FIRST_PARTY: {sorted(overlap)}"
 
     on_disk = {
-        item.name
-        for item in skills_dir.iterdir()
-        if item.name != ".gitkeep" and item.is_dir()
+        item.name for item in skills_dir.iterdir() if item.name != ".gitkeep" and item.is_dir()
     }
     unclassified = on_disk - lock_names - first_party
     assert not unclassified, (
