@@ -189,7 +189,9 @@ software-factory/
 | 등급 | 경로 | 에이전트 | 머지 |
 | --- | --- | --- | --- |
 | 수정 금지 | `ontology/`, `interfaces/`, `eval/gold/`, `eval/baseline.json`, `.github/**` | 고치지 않고 PR 설명에 제안만 남김 | 사람이 직접 바꾸거나 승인 |
-| 승인 필요 | `pyproject.toml`, `uv.lock`, `render.yaml`, `.devcontainer/**`, 인증·시크릿을 다루는 코드 | 고칠 수 있음 | 사람 승인 후 머지, L4 자동 머지 제외 |
+| 승인 필요 | `pyproject.toml`, `uv.lock`, `render.yaml`, `.devcontainer/**`, 시크릿 게이트 설정(`.gitleaks.toml`, `.pre-commit-config.yaml`), Hook 설정(`.claude/settings.json`, `.cursor/hooks.json`, `.agents/hooks/**`), 인증·시크릿을 다루는 코드 | 고칠 수 있음 | 사람 승인 후 머지, L4 자동 머지 제외 |
+
+**개정 (2026-11-17, #21 D1).** 승인 필요 등급에 시크릿 게이트 설정과 Hook 설정을 추가했습니다. 에이전트가 allowlist 한 줄이나 Hook 등록 변경으로 1차 방어선을 끌 수 있기 때문입니다. 두 등급의 경로 목록 원본은 `.agents/hooks/_hookio.py`(`PROTECTED_PREFIXES`·`PROTECTED_FILES`·`APPROVAL_REQUIRED`)이고, `guard.yml`·`CODEOWNERS`·`AGENTS.md`와의 일치는 `tests/test_protected_paths.py`가 검사합니다.
 
 ### 4.1 라벨
 

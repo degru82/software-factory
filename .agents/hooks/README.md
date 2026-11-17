@@ -4,6 +4,8 @@ Claude Code와 Cursor가 **함께 쓰는** Hook 스크립트 원본이다. 등�
 `tests/test_hook_registration.py`가 두 파일과 아래 표의 일치를 검사한다.
 Hook은 1차 방어선이다. 그다음은 커밋 시점의 pre-commit gitleaks(#20)이고, 최종 강제는 CI(#21 gitleaks·guard·ci)가 한다. 입력 파싱에 실패하면 fail-open(경고 후 exit 0)이다.
 
+이 디렉터리와 등록 파일(`.claude/settings.json`, `.cursor/hooks.json`)은 **승인 필요** 등급이다(#21 D1). 에이전트도 고칠 수 있지만, 그 PR은 `guard`가 오너의 `approved:gate`를 요구하고 L4 자동 머지에서 빠진다. 보호 경로 두 등급의 목록 원본은 `_hookio.py` 맨 위 상수이고, `guard.yml`·`CODEOWNERS`·`AGENTS.md`와의 일치는 `tests/test_protected_paths.py`가 검사한다.
+
 구성: `*.sh`는 `python3 -I _hookio.py <검사이름>`을 실행하는 얇은 진입점이다. 판정 로직·보호 경로 상수는 `_hookio.py` 맨 위 한곳에만 있다. Python 3 표준 라이브러리만 쓴다(jq 불필요).
 
 ## Hook 4종과 등록 내용
