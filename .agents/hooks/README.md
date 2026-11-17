@@ -2,7 +2,7 @@
 
 Claude Code와 Cursor가 **함께 쓰는** Hook 스크립트 원본이다. 등록은 `.claude/settings.json`, `.cursor/hooks.json`에 손으로 쓰고(#19 D1),
 `tests/test_hook_registration.py`가 두 파일과 아래 표의 일치를 검사한다.
-Hook은 1차 방어선이고, 최종 강제는 CI(#20 gitleaks, #21 guard·ci)가 한다. 입력 파싱에 실패하면 fail-open(경고 후 exit 0)이다.
+Hook은 1차 방어선이다. 그다음은 커밋 시점의 pre-commit gitleaks(#20)이고, 최종 강제는 CI(#21 gitleaks·guard·ci)가 한다. 입력 파싱에 실패하면 fail-open(경고 후 exit 0)이다.
 
 구성: `*.sh`는 `python3 -I _hookio.py <검사이름>`을 실행하는 얇은 진입점이다. 판정 로직·보호 경로 상수는 `_hookio.py` 맨 위 한곳에만 있다. Python 3 표준 라이브러리만 쓴다(jq 불필요).
 
@@ -12,7 +12,7 @@ Hook은 1차 방어선이고, 최종 강제는 CI(#20 gitleaks, #21 guard·ci)�
 | --- | --- | --- | --- |
 | `protect_paths.sh` | `PreToolUse`, matcher `Edit\|Write\|MultiEdit\|NotebookEdit` | `preToolUse`, matcher `Write\|Delete` | 보호 경로(`ontology/`, `interfaces/`, `eval/gold/`, `eval/baseline.json`, `.github/`)와 생성물(`.mcp.json`, `.cursor/mcp.json`) 편집 |
 | `block_secrets.sh` | 위와 동일 | 위와 동일 | `.env`·`.env.*` 편집(`.env.example`·`.env.sample` 제외), 명백한 키 접두 패턴 기록 |
-| `cost_guard.sh` | `PreToolUse`, matcher `Bash` | `beforeShellExecution` | `approved:gate`·`eval` 라벨 부착 명령, 로컬 유료 호출 |
+| `cost_guard.sh` | `PreToolUse`, matcher `Bash` | `beforeShellExecution` | `approved:gate`·`eval` 라벨 부착 명령, 로컬 유료 호출, 커밋 Hook 우회(`--no-verify`·`commit -n`·`SKIP=gitleaks`·`-c core.hooksPath=`) |
 | `fast_checks.sh` | `Stop` | `stop` (`loop_limit` 기본값 유지) | ruff·단위 테스트가 실패한 채 종료 |
 
 - 차단 시 Claude는 stderr + exit 2, Cursor는 stdout JSON(`permission: deny`) + exit 2다. Cursor `stop`은 `followup_message`로 다시 시킨다.

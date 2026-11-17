@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -54,6 +55,12 @@ PAID_COMMAND_PATTERNS = (
     re.compile(r"OPENROUTER_EVAL_KEY"),
 )
 ALLOW_PAID_ENV = "FACTORY_ALLOW_PAID"
+
+# 커밋 Hook(pre-commit·gitleaks, #20) 우회 (#20 D4). FACTORY_ALLOW_PAID와 무관하게 항상 막는다.
+HOOKED_GIT_SUBCOMMANDS = ("commit", "push", "merge")
+SKIP_HOOK_IDS = ("gitleaks",)
+# `git commit` 단축 옵션 중 값을 받는 것. 묶음(-am x)에서 이 글자 뒤는 값이므로 -n 판정에서 뺀다.
+COMMIT_VALUE_SHORT_OPTS = frozenset("mFCct")
 
 DEFAULT_FAST_CHECKS = 'uv run ruff check . && uv run pytest -m "not integration" -q -x'
 FAST_CHECKS_TIMEOUT_SEC = 540
@@ -274,6 +281,83 @@ def _touches_human_label(command: str) -> bool:
     return False
 
 
+_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_GIT_GLOBAL_OPTS_WITH_VALUE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace"))
+
+
+def _split_segments(command: str) -> list[list[str]]:
+    """셸 명령을 `;`·`&&`·`||`·`|`·줄바꿈 단위로 나눠 토큰 목록으로 돌려준다."""
+    segments: list[list[str]] = []
+    for part in re.split(r"&&|\|\||[;|\n]", command):
+        try:
+            tokens = shlex.split(part)
+        except ValueError:  # 닫히지 않은 따옴표 등: 공백 분리로 대신한다.
+            tokens = part.split()
+        if tokens:
+            segments.append(tokens)
+    return segments
+
+
+def _skips_hook(assignment: str) -> bool:
+    name, _, value = assignment.partition("=")
+    return name == "SKIP" and any(i in value.split(",") for i in SKIP_HOOK_IDS)
+
+
+def _commit_short_opts_have_n(args: list[str]) -> bool:
+    """`git commit` 인자에서 -n(--no-verify의 단축형)을 찾는다. -m 등의 값은 건너뛴다."""
+    i = 0
+    while i < len(args):
+        tok = args[i]
+        i += 1
+        if tok == "--":
+            return False
+        if not tok.startswith("-") or tok.startswith("--") or tok == "-":
+            continue
+        for j, ch in enumerate(tok[1:]):
+            if ch == "n":
+                return True
+            if ch in COMMIT_VALUE_SHORT_OPTS:
+                if j == len(tok) - 2:  # 묶음의 마지막 글자면 다음 토큰이 값이다.
+                    i += 1
+                break
+    return False
+
+
+def _bypasses_commit_hook(command: str) -> bool:
+    exported_skip = False
+    for tokens in _split_segments(command):
+        if tokens[0] == "export":
+            exported_skip = exported_skip or any(_skips_hook(t) for t in tokens[1:])
+            continue
+        k = 0
+        if tokens[k] == "env":
+            k += 1
+        prefix_skip = False
+        while k < len(tokens) and _ASSIGN.match(tokens[k]):
+            prefix_skip = prefix_skip or _skips_hook(tokens[k])
+            k += 1
+        if k >= len(tokens) or os.path.basename(tokens[k]) != "git":
+            continue
+        k += 1
+        hooks_path_override = False
+        while k < len(tokens) and tokens[k].startswith("-"):
+            opt = tokens[k]
+            if opt in _GIT_GLOBAL_OPTS_WITH_VALUE and k + 1 < len(tokens):
+                if opt == "-c" and tokens[k + 1].lower().startswith("core.hookspath="):
+                    hooks_path_override = True
+                k += 2
+            else:
+                k += 1
+        if k >= len(tokens) or tokens[k] not in HOOKED_GIT_SUBCOMMANDS:
+            continue
+        sub, args = tokens[k], tokens[k + 1 :]
+        if prefix_skip or exported_skip or hooks_path_override or "--no-verify" in args:
+            return True
+        if sub == "commit" and _commit_short_opts_have_n(args):  # push -n은 dry-run이다.
+            return True
+    return False
+
+
 def check_cost_guard(ev: Event) -> int:
     cmd = ev.command
     if not cmd:
@@ -283,6 +367,13 @@ def check_cost_guard(ev: Event) -> int:
             ev,
             "승인·eval 라벨은 사람이 GitHub 화면에서만 붙입니다 (Action Plan §4.2). "
             "이 명령은 어떤 경우에도 허용되지 않습니다.",
+        )
+    if _bypasses_commit_hook(cmd):
+        return block(
+            ev,
+            "커밋 Hook(pre-commit·gitleaks) 우회는 허용되지 않습니다 (#20). "
+            "실패 원인을 고치세요. 오탐이면 .gitleaks.toml에 이유와 함께 좁은 allowlist를 "
+            "PR에서 제안하세요.",
         )
     if os.environ.get(ALLOW_PAID_ENV) != "1" and any(p.search(cmd) for p in PAID_COMMAND_PATTERNS):
         return block(

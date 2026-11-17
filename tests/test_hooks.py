@@ -251,6 +251,57 @@ def test_cost_guard_allows(host: str, repo: Path, command: str) -> None:
     assert run("cost_guard", shell_payload(host, repo, command)).returncode == 0
 
 
+# --- cost_guard: pre-commit 우회 (#20 D4) ----------------------------------
+
+HOOK_BYPASS_BLOCKED = [
+    "git commit --no-verify -m x",
+    "git commit -m x --no-verify",
+    "git commit -nm x",
+    "git commit -n -m x",
+    "git commit -am x -n",
+    "git -C sub commit --no-verify -m x",
+    "SKIP=gitleaks git commit -m x",
+    "SKIP=ruff,gitleaks git commit -m x",
+    "env SKIP=gitleaks git commit -m x",
+    "git add . && git commit --no-verify -m x",
+    "git push --no-verify",
+    "export SKIP=gitleaks; git commit -m x",
+    "git -c core.hooksPath=/dev/null commit -m x",
+]
+
+
+@pytest.mark.parametrize("host", HOSTS)
+@pytest.mark.parametrize("command", HOOK_BYPASS_BLOCKED)
+def test_cost_guard_blocks_hook_bypass(host: str, repo: Path, command: str) -> None:
+    r = run("cost_guard", shell_payload(host, repo, command))
+    assert r.returncode == 2
+    # FACTORY_ALLOW_PAID는 유료 호출 스위치일 뿐, 커밋 Hook 우회와는 무관하다.
+    assert (
+        run(
+            "cost_guard", shell_payload(host, repo, command), {"FACTORY_ALLOW_PAID": "1"}
+        ).returncode
+        == 2
+    )
+
+
+@pytest.mark.parametrize("host", HOSTS)
+@pytest.mark.parametrize(
+    "command",
+    [
+        'git commit -m "no-verify 설명"',
+        "git commit -m 'SKIP=gitleaks 문서화'",
+        "git commit -m x",
+        "git commit --amend --no-edit",
+        "git log -n 5",
+        "git diff -n",
+        "SKIP=ruff git commit -m x",
+        "uv run pre-commit run gitleaks --all-files",
+    ],
+)
+def test_cost_guard_allows_normal_commits(host: str, repo: Path, command: str) -> None:
+    assert run("cost_guard", shell_payload(host, repo, command)).returncode == 0
+
+
 # --- fast_checks -----------------------------------------------------------
 
 
