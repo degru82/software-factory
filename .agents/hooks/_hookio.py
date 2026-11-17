@@ -31,6 +31,20 @@ from typing import Any
 PROTECTED_PREFIXES = ("ontology/", "interfaces/", "eval/gold/", ".github/")
 PROTECTED_FILES = ("eval/baseline.json",)
 
+# "승인 필요" 등급 (Action Plan §4, #21 D1). Hook은 막지 않고, guard가 approved:gate를 요구한다.
+# '/'로 끝나면 디렉터리 접두어, 아니면 파일 하나. guard.yml·CODEOWNERS·AGENTS.md 규칙 1과 같아야 한다.
+APPROVAL_REQUIRED = (
+    "pyproject.toml",
+    "uv.lock",
+    "render.yaml",
+    ".devcontainer/",
+    ".gitleaks.toml",
+    ".pre-commit-config.yaml",
+    ".claude/settings.json",
+    ".cursor/hooks.json",
+    ".agents/hooks/",
+)
+
 # 생성물: 원본(.agents/mcp.json)만 고친다 (CLAUDE.md, ADR 0001).
 GENERATED_FILES = (".mcp.json", ".cursor/mcp.json")
 
