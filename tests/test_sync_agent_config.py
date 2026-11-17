@@ -37,9 +37,7 @@ FIXTURE_SOURCE: dict[str, Any] = {
 }
 
 # Claude target: deterministic dump of source (sort_keys, indent=2, trailing newline).
-EXPECTED_CLAUDE = (
-    json.dumps(FIXTURE_SOURCE, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-)
+EXPECTED_CLAUDE = json.dumps(FIXTURE_SOURCE, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 # Cursor target: ${VAR} -> ${env:VAR}; stdio gets type=stdio; remote type kept.
 EXPECTED_CURSOR_OBJ: dict[str, Any] = {
@@ -64,9 +62,7 @@ EXPECTED_CURSOR = (
     json.dumps(EXPECTED_CURSOR_OBJ, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 )
 
-DAY1_KEYS = frozenset(
-    {"github", "neo4j", "context7", "docs-langchain", "reference-langchain"}
-)
+DAY1_KEYS = frozenset({"github", "neo4j", "context7", "docs-langchain", "reference-langchain"})
 
 
 @pytest.fixture
@@ -85,9 +81,7 @@ def mini_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _run_sync(
-    repo: Path, *args: str, check: bool = False
-) -> subprocess.CompletedProcess[str]:
+def _run_sync(repo: Path, *args: str, check: bool = False) -> subprocess.CompletedProcess[str]:
     """Invoke sync-agent-config.sh from a mini (or real) repo root."""
     script = repo / "scripts" / "sync-agent-config.sh"
     return subprocess.run(
@@ -134,9 +128,11 @@ def test_invalid_source_json_exits_2(mini_repo: Path) -> None:
     (mini_repo / ".agents" / "mcp.json").write_text("{not json", encoding="utf-8")
     result = _run_sync(mini_repo)
     assert result.returncode == 2
-    assert "json" in (result.stdout + result.stderr).lower() or "parse" in (
-        result.stdout + result.stderr
-    ).lower() or "invalid" in (result.stdout + result.stderr).lower()
+    assert (
+        "json" in (result.stdout + result.stderr).lower()
+        or "parse" in (result.stdout + result.stderr).lower()
+        or "invalid" in (result.stdout + result.stderr).lower()
+    )
 
 
 def test_missing_source_exits_2(mini_repo: Path) -> None:

@@ -198,12 +198,12 @@ def test_claude_and_cursor_symlinks(repo_root: Path) -> None:
     assert claude_skills.is_symlink(), ".claude/skills is not a symlink"
     assert cursor_skills.is_symlink(), ".cursor/skills is not a symlink"
 
-    assert (
-        claude_skills.readlink() == Path("../.agents/skills")
-    ), f".claude/skills points to {claude_skills.readlink()}, expected ../.agents/skills"
-    assert (
-        cursor_skills.readlink() == Path("../.agents/skills")
-    ), f".cursor/skills points to {cursor_skills.readlink()}, expected ../.agents/skills"
+    assert claude_skills.readlink() == Path("../.agents/skills"), (
+        f".claude/skills points to {claude_skills.readlink()}, expected ../.agents/skills"
+    )
+    assert cursor_skills.readlink() == Path("../.agents/skills"), (
+        f".cursor/skills points to {cursor_skills.readlink()}, expected ../.agents/skills"
+    )
 
     # Symlinks must resolve (not broken).
     assert claude_skills.resolve(strict=True).is_dir()
@@ -234,16 +234,12 @@ def test_skills_lock_has_required_sources(skills_lock: dict[str, Any]) -> None:
     skills = skills_lock.get("skills")
     assert isinstance(skills, dict), "skills-lock.json missing top-level 'skills' object"
 
-    sources = {
-        entry.get("source") for entry in skills.values() if isinstance(entry, dict)
-    }
+    sources = {entry.get("source") for entry in skills.values() if isinstance(entry, dict)}
 
-    assert (
-        "mattpocock/skills" in sources
-    ), "skills-lock.json missing source 'mattpocock/skills'"
-    assert (
-        "langchain-ai/langchain-skills" in sources
-    ), "skills-lock.json missing source 'langchain-ai/langchain-skills'"
+    assert "mattpocock/skills" in sources, "skills-lock.json missing source 'mattpocock/skills'"
+    assert "langchain-ai/langchain-skills" in sources, (
+        "skills-lock.json missing source 'langchain-ai/langchain-skills'"
+    )
 
 
 def test_skills_lock_has_computed_hash(skills_lock: dict[str, Any]) -> None:
@@ -256,9 +252,7 @@ def test_skills_lock_has_computed_hash(skills_lock: dict[str, Any]) -> None:
 
     for skill_name, entry in skills.items():
         assert isinstance(entry, dict), f"{skill_name} entry is not an object"
-        assert (
-            "computedHash" in entry
-        ), f"{skill_name} missing 'computedHash' in skills-lock.json"
+        assert "computedHash" in entry, f"{skill_name} missing 'computedHash' in skills-lock.json"
         assert entry["computedHash"], f"{skill_name} has empty 'computedHash'"
 
 
